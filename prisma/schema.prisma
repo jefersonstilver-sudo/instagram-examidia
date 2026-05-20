@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(EDITOR)
+  accounts      Account[]
+  sessions      Session[]
+  approvals     Approval[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── Content Pipeline ────────────────────────────────────────────
+
+model Content {
+  id              String        @id @default(cuid())
+  title           String
+  objective       String?
+  hypothesis      String?
+  format          ContentFormat
+  funnel          Funnel
+  audience        Audience
+  tone            Tone          @default(PROVOCATIVO)
+  status          ContentStatus @default(IDEA)
+  priority        Priority      @default(MEDIA)
+  hypeScore       Int?
+  commercialScore Int?
+  scriptBody      String?
+  creativeUrl     String?
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  source          String?
+  approvals       Approval[]
+  metrics         PostMetric?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Approval {
+  id        String         @id @default(cuid())
+  contentId String
+  userId    String
+  action    ApprovalAction
+  comment   String?
+  content   Content        @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id])
+  createdAt DateTime       @default(now())
+}
+
+// ─── Metrics ─────────────────────────────────────────────────────
+
+model PostMetric {
+  id             String  @id @default(cuid())
+  contentId      String  @unique
+  reach          Int     @default(0)
+  impressions    Int     @default(0)
+  likes          Int     @default(0)
+  comments       Int     @default(0)
+  saves          Int     @default(0)
+  shares         Int     @default(0)
+  engagementRate Float   @default(0)
+  content        Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+}
+
+model DailyMetric {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  followers Int
+  reach     Int
+  engagement Float
+  saves     Int
+  shares    Int
+  comments  Int
+  createdAt DateTime @default(now())
+}
+
+// ─── Radar ───────────────────────────────────────────────────────
+
+model RadarItem {
+  id              String   @id @default(cuid())
+  title           String
+  summary         String
+  source          String
+  sourceUrl       String?
+  category        RadarCategory
+  audience        Audience
+  hypeScore       Int
+  relevanceScore  Int
+  suggestedFormat ContentFormat
+  suggestedAngle  String
+  whyMatters      String
+  used            Boolean  @default(false)
+  createdAt       DateTime @default(now())
+}
+
+// ─── Comercial ───────────────────────────────────────────────────
+
+model Lead {
+  id          String     @id @default(cuid())
+  name        String
+  contact     String?
+  source      String
+  status      LeadStatus @default(FRIO)
+  value       Float?
+  nextAction  String?
+  lastContact DateTime?
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// ─── Enums ───────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum ContentFormat {
+  REEL
+  CAROUSEL
+  STORIES
+  POST
+}
+
+enum Funnel {
+  TOPO
+  MEIO
+  FUNDO
+  AUTORIDADE
+}
+
+enum Audience {
+  ANUNCIANTES
+  SINDICOS
+  MORADORES
+  GERAL
+}
+
+enum Tone {
+  PROVOCATIVO
+  EDUCATIVO
+  INSTITUCIONAL
+  URGENTE
+  INSPIRACIONAL
+}
+
+enum ContentStatus {
+  IDEA
+  PENDING_THEME
+  THEME_APPROVED
+  PENDING_SCRIPT
+  SCRIPT_BUILDING
+  SCRIPT_APPROVED
+  PENDING_CREATIVE
+  CREATIVE_GENERATING
+  CREATIVE_APPROVED
+  SCHEDULED
+  PUBLISHED
+  ANALYZED
+}
+
+enum Priority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum ApprovalAction {
+  APPROVED
+  REJECTED
+  REVISION
+}
+
+enum RadarCategory {
+  LOCAL
+  HYPE
+  SINDICOS
+  EMPRESARIOS
+  CONCORRENTES
+  TURISMO
+}
+
+enum LeadStatus {
+  FRIO
+  MORNO
+  QUENTE
+  NEGOCIANDO
+  FECHADO
+  PERDIDO
+}
