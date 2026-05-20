@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { mockNews } from "@/data/mock-radar";
 import {
@@ -9,14 +10,16 @@ import {
   Building2,
   Briefcase,
   Flame,
-  ExternalLink,
   Sparkles,
   Image,
   Film,
   MessageSquare,
+  Loader2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 const categoryConfig: Record<string, { label: string; icon: React.ElementType; color: string }> = {
   local: { label: "Local", icon: Globe, color: "text-exa-cyan" },
@@ -27,7 +30,7 @@ const categoryConfig: Record<string, { label: string; icon: React.ElementType; c
   turismo: { label: "Turismo", icon: Globe, color: "text-exa-green" },
 };
 
-function NewsCard({ item, index }: { item: (typeof mockNews)[0]; index: number }) {
+function NewsCard({ item, index, onCreateContent }: { item: (typeof mockNews)[0]; index: number; onCreateContent: (format: string, title: string) => void }) {
   const config = categoryConfig[item.category];
   return (
     <motion.div
@@ -76,16 +79,16 @@ function NewsCard({ item, index }: { item: (typeof mockNews)[0]; index: number }
           {item.audience}
         </Badge>
         <div className="flex-1" />
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
+        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => onCreateContent("reel", item.title)}>
           <Film className="w-3 h-3" /> Reel
         </Button>
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
+        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => onCreateContent("carousel", item.title)}>
           <Image className="w-3 h-3" /> Carrossel
         </Button>
-        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1">
+        <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => onCreateContent("stories", item.title)}>
           <MessageSquare className="w-3 h-3" /> Stories
         </Button>
-        <Button size="sm" className="h-7 text-xs gap-1 bg-exa-red hover:bg-exa-red/90 text-white">
+        <Button size="sm" className="h-7 text-xs gap-1 bg-exa-red hover:bg-exa-red/90 text-white" onClick={() => onCreateContent(item.suggestedFormat, item.title)}>
           <Sparkles className="w-3 h-3" /> Criar
         </Button>
       </div>
@@ -94,7 +97,24 @@ function NewsCard({ item, index }: { item: (typeof mockNews)[0]; index: number }
 }
 
 export default function RadarPage() {
+  const router = useRouter();
   const categories = ["todos", "turismo", "local", "hype", "empresarios", "sindicos", "concorrentes"];
+  const [activeFilter, setActiveFilter] = useState("todos");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const filteredNews = activeFilter === "todos"
+    ? mockNews
+    : mockNews.filter((n) => n.category === activeFilter);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => setRefreshing(false), 1500);
+  };
+
+  const handleCreateContent = (format: string, title: string) => {
+    const params = new URLSearchParams({ module: format, context: title });
+    router.push(`/gerador?${params.toString()}`);
+  };
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
@@ -105,11 +125,12 @@ export default function RadarPage() {
             Radar de Inteligencia
           </h1>
           <p className="text-sm text-muted-foreground">
-            Noticias, tendencias e oportunidades de conteudo
+            {filteredNews.length} noticias {activeFilter !== "todos" ? `em "${activeFilter}"` : ""}
           </p>
         </div>
-        <Button size="sm" variant="outline" className="gap-2 text-xs">
-          <TrendingUp className="w-3.5 h-3.5" /> Atualizar Radar
+        <Button size="sm" variant="outline" className="gap-2 text-xs" onClick={handleRefresh} disabled={refreshing}>
+          {refreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TrendingUp className="w-3.5 h-3.5" />}
+          {refreshing ? "Atualizando..." : "Atualizar Radar"}
         </Button>
       </div>
 
@@ -119,8 +140,9 @@ export default function RadarPage() {
           <Button
             key={cat}
             size="sm"
-            variant={cat === "todos" ? "default" : "outline"}
+            variant={activeFilter === cat ? "default" : "outline"}
             className="h-7 text-xs capitalize"
+            onClick={() => setActiveFilter(cat)}
           >
             {cat}
           </Button>
@@ -129,10 +151,16 @@ export default function RadarPage() {
 
       {/* News grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {mockNews.map((item, i) => (
-          <NewsCard key={item.id} item={item} index={i} />
+        {filteredNews.map((item, i) => (
+          <NewsCard key={item.id} item={item} index={i} onCreateContent={handleCreateContent} />
         ))}
       </div>
+
+      {filteredNews.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-sm text-muted-foreground">Nenhuma noticia nesta categoria</p>
+        </div>
+      )}
     </div>
   );
 }

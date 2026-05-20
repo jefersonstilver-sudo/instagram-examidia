@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,31 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [healthScore, setHealthScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/instagram")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.current && data.posts) {
+          const m = data.current;
+          const posts = data.posts;
+          const engScore = Math.min(100, Math.round((m.engagementAvg / 5) * 100));
+          const reachScore = Math.min(100, Math.round((m.reach7d / Math.max(m.followers, 1) / 3) * 100));
+          const typeCount: Record<string, number> = {};
+          for (const p of posts) typeCount[p.type] = (typeCount[p.type] || 0) + 1;
+          const diversityScore = Math.min(100, Object.keys(typeCount).length * 33);
+          const consistencyScore = Math.min(100, Math.round((posts.length / 25) * 100));
+          const overall = Math.round(engScore * 0.3 + reachScore * 0.25 + diversityScore * 0.15 + consistencyScore * 0.3);
+          setHealthScore(overall);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const score = healthScore ?? 0;
+  const scoreColor = score >= 70 ? "text-exa-green" : score >= 50 ? "text-exa-amber" : "text-exa-red";
+  const barColor = score >= 70 ? "bg-exa-green" : score >= 50 ? "bg-exa-amber" : "bg-exa-red";
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border/50 bg-sidebar flex flex-col">
@@ -65,11 +91,6 @@ export function Sidebar() {
                 className={cn("w-4 h-4", isActive && "text-exa-red")}
               />
               {item.label}
-              {item.href === "/aprovacoes" && (
-                <span className="ml-auto text-[10px] bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-full font-mono">
-                  4
-                </span>
-              )}
             </Link>
           );
         })}
@@ -82,13 +103,15 @@ export function Sidebar() {
             Health Score
           </p>
           <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-exa-amber">62</span>
+            <span className={`text-2xl font-bold ${scoreColor}`}>
+              {healthScore !== null ? score : "..."}
+            </span>
             <span className="text-xs text-muted-foreground">/100</span>
           </div>
           <div className="w-full bg-muted rounded-full h-1.5 mt-2">
             <div
-              className="bg-exa-amber h-1.5 rounded-full transition-all"
-              style={{ width: "62%" }}
+              className={`${barColor} h-1.5 rounded-full transition-all`}
+              style={{ width: `${score}%` }}
             />
           </div>
         </div>

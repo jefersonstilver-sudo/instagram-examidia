@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus } from "lucid
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { mockContentPipeline, statusLabels, statusColors } from "@/data/mock-content";
+import { useRouter } from "next/navigation";
 
 const DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 const MONTHS = ["Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -18,7 +19,8 @@ const formatIcons: Record<string, string> = {
 };
 
 export default function CalendarioPage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 4, 1)); // May 2026
+  const router = useRouter();
+  const [currentDate, setCurrentDate] = useState(new Date());
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay();
@@ -45,7 +47,7 @@ export default function CalendarioPage() {
             {scheduledItems.length} conteudos agendados
           </p>
         </div>
-        <Button size="sm" className="gap-2 text-xs bg-exa-red hover:bg-exa-red/90 text-white">
+        <Button size="sm" className="gap-2 text-xs bg-exa-red hover:bg-exa-red/90 text-white" onClick={() => router.push("/gerador")}>
           <Plus className="w-3.5 h-3.5" /> Agendar
         </Button>
       </div>
@@ -77,7 +79,8 @@ export default function CalendarioPage() {
                   return parseInt(parts[0]) === day && parseInt(parts[1]) === month + 1;
                 })
               : [];
-            const isToday = day === 20 && month === 4 && year === 2026;
+            const today = new Date();
+            const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
             return (
               <motion.div
                 key={i}

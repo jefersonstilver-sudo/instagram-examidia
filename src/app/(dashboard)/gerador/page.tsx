@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sparkles, Film, Image, MessageSquare, Megaphone, Newspaper, Building2, Send, Loader2 } from "lucide-react";
+import { Sparkles, Film, Image, MessageSquare, Megaphone, Newspaper, Building2, Send, Loader2, CheckCircle2, Edit3, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,10 +20,13 @@ const modules = [
 ];
 
 export default function GeradorPage() {
+  const searchParams = useSearchParams();
   const [activeModule, setActiveModule] = useState("theme");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [approved, setApproved] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [audience, setAudience] = useState("anunciantes");
   const [funnel, setFunnel] = useState("topo");
   const [tone, setTone] = useState("provocativo");
@@ -30,6 +34,14 @@ export default function GeradorPage() {
 
   const safeSet = (setter: (v: string) => void) => (v: string | null) => { if (v) setter(v); };
   const [context, setContext] = useState("");
+
+  // Accept params from radar/aprovacoes pages
+  useEffect(() => {
+    const mod = searchParams.get("module");
+    const ctx = searchParams.get("context");
+    if (mod) setActiveModule(mod);
+    if (ctx) setContext(ctx);
+  }, [searchParams]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -207,16 +219,32 @@ export default function GeradorPage() {
                 </pre>
               </div>
               <div className="flex gap-2 flex-wrap">
-                <Button size="sm" className="bg-exa-green hover:bg-exa-green/90 text-white text-xs gap-1">
-                  Aprovar
+                <Button
+                  size="sm"
+                  className={`text-xs gap-1 ${approved ? "bg-exa-green/20 text-exa-green border border-exa-green/30" : "bg-exa-green hover:bg-exa-green/90 text-white"}`}
+                  onClick={() => setApproved(true)}
+                  disabled={approved}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> {approved ? "Aprovado!" : "Aprovar"}
                 </Button>
-                <Button size="sm" variant="outline" className="text-xs gap-1">
-                  Editar
+                <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => {
+                  if (result) navigator.clipboard.writeText(result);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}>
+                  {copied ? <CheckCircle2 className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  {copied ? "Copiado!" : "Copiar"}
                 </Button>
-                <Button size="sm" variant="outline" className="text-xs gap-1" onClick={handleGenerate}>
+                <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => { setApproved(false); handleGenerate(); }}>
                   Nova versao
                 </Button>
-                <Button size="sm" variant="outline" className="text-xs gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={`text-xs gap-1 ${approved ? "border-exa-cyan/30 text-exa-cyan hover:bg-exa-cyan/10" : ""}`}
+                  disabled={!approved}
+                  onClick={() => { alert("Conteudo enviado ao pipeline editorial!"); }}
+                >
                   <Send className="w-3 h-3" /> Enviar ao Pipeline
                 </Button>
               </div>
