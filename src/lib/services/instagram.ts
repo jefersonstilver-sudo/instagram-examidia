@@ -20,7 +20,7 @@
  *    GET /{page_id}?fields=instagram_business_account → ig_id
  */
 
-const GRAPH_API = "https://graph.facebook.com/v21.0";
+const GRAPH_API = "https://graph.facebook.com/v18.0";
 
 function getConfig() {
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
