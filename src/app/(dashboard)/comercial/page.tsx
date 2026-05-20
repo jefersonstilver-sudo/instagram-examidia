@@ -161,12 +161,16 @@ export default function ComercialPage() {
                   <span className="text-xs">{lead.nextAction}</span>
                 </div>
                 <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                    <Phone className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                    <Mail className="w-3.5 h-3.5" />
-                  </Button>
+                  <a href={`https://wa.me/5545998323225?text=${encodeURIComponent(`Oi! Sou da EXA Midia, gostaria de falar sobre midia indoor para ${lead.name}`)}`} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                      <Phone className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                  <a href={`mailto:contato@examidia.com.br?subject=Proposta EXA Midia - ${encodeURIComponent(lead.name)}`} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                      <Mail className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
                 </div>
               </motion.div>
             );

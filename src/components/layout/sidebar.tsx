@@ -14,7 +14,6 @@ import {
   BarChart3,
   Target,
   Megaphone,
-  Zap,
 } from "lucide-react";
 
 const navItems = [
@@ -37,11 +36,9 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border/50 bg-sidebar flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border/50">
-        <div className="w-8 h-8 rounded-lg bg-exa-red flex items-center justify-center">
-          <Zap className="w-4 h-4 text-white" />
-        </div>
+        <img src="/logo-exa-white.png" alt="EXA" className="h-7 w-auto" />
         <div>
-          <h1 className="text-sm font-bold tracking-tight">EXA Growth</h1>
+          <h1 className="text-sm font-bold tracking-tight">Growth</h1>
           <p className="text-[10px] text-muted-foreground tracking-widest uppercase">
             Command Center
           </p>

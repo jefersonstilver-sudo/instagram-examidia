@@ -1,9 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, TrendingUp, Users, Eye, Heart, Bookmark, Share2, MessageCircle, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { mockMetrics, currentMetrics, mockPosts } from "@/data/mock-instagram";
+import { BarChart3, TrendingUp, Users, Eye, Heart, Bookmark, Share2, MessageCircle, ArrowUpRight, ArrowDownRight, Loader2, ExternalLink } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const chartStyle = {
   background: "oklch(0.18 0.012 260)",
@@ -12,41 +12,89 @@ const chartStyle = {
   fontSize: "12px",
 };
 
-function MetricRow({ label, value, change, icon: Icon }: { label: string; value: string | number; change: number; icon: React.ElementType }) {
-  const positive = change >= 0;
+interface Post {
+  id: string;
+  type: string;
+  title: string;
+  permalink: string;
+  mediaUrl: string;
+  publishedAt: string;
+  likes: number;
+  comments: number;
+  reach: number;
+  saves: number;
+  shares: number;
+  engagementRate: number;
+}
+
+interface Metrics {
+  followers: number;
+  reach7d: number;
+  engagementAvg: number;
+  totalLikes30d: number;
+  totalComments30d: number;
+  totalShares30d: number;
+  totalSaves30d: number;
+}
+
+function MetricRow({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
   return (
     <div className="flex items-center justify-between py-3 border-b border-border/30 last:border-0">
       <div className="flex items-center gap-3">
         <Icon className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm">{label}</span>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-mono font-medium">{value}</span>
-        <span className={`text-xs flex items-center gap-0.5 ${positive ? "text-exa-green" : "text-destructive"}`}>
-          {positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-          {Math.abs(change)}%
-        </span>
-      </div>
+      <span className="text-sm font-mono font-medium">{typeof value === "number" ? value.toLocaleString() : value}</span>
     </div>
   );
 }
 
-const formatPerformance = [
-  { name: "Reels", alcance: 4900, engajamento: 10.3, salvamentos: 43 },
-  { name: "Carrosseis", alcance: 2115, engajamento: 6.95, salvamentos: 41.5 },
-  { name: "Posts", alcance: 780, engajamento: 2.1, salvamentos: 5 },
-];
-
-const audienceData = [
-  { name: "Anunciantes", value: 45 },
-  { name: "Sindicos", value: 20 },
-  { name: "Moradores", value: 25 },
-  { name: "Geral", value: 10 },
-];
-const COLORS = ["oklch(0.60 0.24 25)", "oklch(0.75 0.14 210)", "oklch(0.72 0.19 160)", "oklch(0.60 0 0)"];
-
 export default function AnalyticsPage() {
-  const data14 = mockMetrics.slice(-14);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [source, setSource] = useState("");
+
+  useEffect(() => {
+    fetch("/api/instagram")
+      .then((r) => r.json())
+      .then((data) => {
+        setSource(data.source);
+        if (data.current) setMetrics(data.current);
+        if (data.posts) setPosts(data.posts);
+      })
+      .catch(() => setSource("error"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-6 h-6 text-exa-red animate-spin" />
+        <span className="ml-3 text-sm text-muted-foreground">Carregando dados do Instagram...</span>
+      </div>
+    );
+  }
+
+  // Format performance by type
+  const typeStats: Record<string, { count: number; totalLikes: number; totalReach: number; totalSaves: number }> = {};
+  for (const p of posts) {
+    if (!typeStats[p.type]) typeStats[p.type] = { count: 0, totalLikes: 0, totalReach: 0, totalSaves: 0 };
+    typeStats[p.type].count++;
+    typeStats[p.type].totalLikes += p.likes;
+    typeStats[p.type].totalReach += p.reach;
+    typeStats[p.type].totalSaves += p.saves;
+  }
+
+  const formatData = Object.entries(typeStats).map(([name, stats]) => ({
+    name: name === "reel" ? "Reels" : name === "carousel" ? "Carrosseis" : "Posts",
+    likes: Math.round(stats.totalLikes / stats.count),
+    alcance: Math.round(stats.totalReach / stats.count),
+    quantidade: stats.count,
+  }));
+
+  const sortedPosts = [...posts].sort((a, b) => (b.likes + b.comments + b.saves) - (a.likes + a.comments + a.saves));
+
   return (
     <div className="max-w-[1600px] mx-auto space-y-6">
       <div>
@@ -54,80 +102,83 @@ export default function AnalyticsPage() {
           <BarChart3 className="w-5 h-5 text-exa-red" />
           Analytics
         </h1>
-        <p className="text-sm text-muted-foreground">Metricas detalhadas e diagnosticos</p>
+        <p className="text-sm text-muted-foreground">
+          Dados reais do Instagram @examidia — {posts.length} posts analisados
+        </p>
       </div>
 
       {/* Overview metrics */}
-      <div className="glass-card p-6">
-        <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Visao Geral - 30 dias</h3>
-        <div className="divide-y divide-border/30">
-          <MetricRow label="Seguidores" value={currentMetrics.followers} change={currentMetrics.followersGrowth30d > 0 ? 8 : -3} icon={Users} />
-          <MetricRow label="Alcance Total" value={currentMetrics.reach7d.toLocaleString()} change={12} icon={Eye} />
-          <MetricRow label="Engajamento Medio" value={`${currentMetrics.engagementAvg}%`} change={5} icon={Heart} />
-          <MetricRow label="Salvamentos" value={currentMetrics.totalSaves30d} change={18} icon={Bookmark} />
-          <MetricRow label="Compartilhamentos" value={currentMetrics.totalShares30d} change={-5} icon={Share2} />
-          <MetricRow label="Comentarios" value={currentMetrics.totalComments30d} change={23} icon={MessageCircle} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Growth chart */}
-        <motion.div className="glass-card p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
-          <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Evolucao de Seguidores</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={data14}>
-              <defs>
-                <linearGradient id="gradF" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="oklch(0.60 0.24 25)" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="oklch(0.60 0.24 25)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="dateLabel" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "oklch(0.55 0 0)" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "oklch(0.55 0 0)" }} domain={["dataMin - 5", "dataMax + 5"]} />
-              <Tooltip contentStyle={chartStyle} />
-              <Area type="monotone" dataKey="followers" stroke="oklch(0.60 0.24 25)" strokeWidth={2} fill="url(#gradF)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </motion.div>
-
-        {/* Format comparison */}
-        <motion.div className="glass-card p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-          <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Performance por Formato</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={formatPerformance}>
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "oklch(0.70 0 0)" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "oklch(0.55 0 0)" }} />
-              <Tooltip contentStyle={chartStyle} />
-              <Bar dataKey="alcance" fill="oklch(0.60 0.24 25)" radius={[4, 4, 0, 0]} name="Alcance" />
-            </BarChart>
-          </ResponsiveContainer>
-          <div className="mt-4 p-3 rounded-lg bg-exa-cyan/5 border border-exa-cyan/10">
-            <p className="text-xs text-exa-cyan">
-              Reels superam carrosseis em 2.3x no alcance. Mas carrosseis geram 3x mais salvamentos. Mix ideal: Reels para topo de funil, carrosseis para meio.
-            </p>
+      {metrics && (
+        <div className="glass-card p-6">
+          <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Visao Geral — @examidia</h3>
+          <div className="divide-y divide-border/30">
+            <MetricRow label="Seguidores" value={metrics.followers} icon={Users} />
+            <MetricRow label="Alcance Total (top 25 posts)" value={metrics.reach7d} icon={Eye} />
+            <MetricRow label="Engajamento Medio" value={`${metrics.engagementAvg}%`} icon={Heart} />
+            <MetricRow label="Total Curtidas" value={metrics.totalLikes30d} icon={Heart} />
+            <MetricRow label="Total Salvamentos" value={metrics.totalSaves30d} icon={Bookmark} />
+            <MetricRow label="Total Compartilhamentos" value={metrics.totalShares30d} icon={Share2} />
+            <MetricRow label="Total Comentarios" value={metrics.totalComments30d} icon={MessageCircle} />
           </div>
-        </motion.div>
-      </div>
+        </div>
+      )}
+
+      {/* Format comparison */}
+      {formatData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <motion.div className="glass-card p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Media de Curtidas por Formato</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={formatData}>
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "oklch(0.70 0 0)" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "oklch(0.55 0 0)" }} />
+                <Tooltip contentStyle={chartStyle} />
+                <Bar dataKey="likes" fill="oklch(0.60 0.24 25)" radius={[4, 4, 0, 0]} name="Curtidas (media)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+
+          <motion.div className="glass-card p-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}>
+            <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Quantidade por Formato</h3>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={formatData}>
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "oklch(0.70 0 0)" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "oklch(0.55 0 0)" }} />
+                <Tooltip contentStyle={chartStyle} />
+                <Bar dataKey="quantidade" fill="oklch(0.75 0.14 210)" radius={[4, 4, 0, 0]} name="Posts" />
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+        </div>
+      )}
 
       {/* Top posts */}
       <div className="glass-card p-6">
-        <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Melhores Posts</h3>
+        <h3 className="text-xs text-muted-foreground uppercase tracking-wider mb-4">Ranking de Posts (por engajamento total)</h3>
         <div className="space-y-3">
-          {mockPosts.sort((a, b) => b.engagementRate - a.engagementRate).map((post, i) => (
+          {sortedPosts.slice(0, 15).map((post, i) => (
             <div key={post.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors">
               <span className="text-lg font-bold text-muted-foreground w-6">#{i + 1}</span>
+              {post.mediaUrl && (
+                <img src={post.mediaUrl} alt="" className="w-10 h-10 rounded object-cover" />
+              )}
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-medium truncate">{post.title}</h4>
                 <div className="flex items-center gap-3 mt-1">
                   <span className="text-[10px] text-muted-foreground uppercase">{post.type}</span>
-                  <span className="text-[10px] text-muted-foreground">{post.publishedAt}</span>
+                  <span className="text-[10px] text-muted-foreground">{new Date(post.publishedAt).toLocaleDateString("pt-BR")}</span>
                 </div>
               </div>
               <div className="flex items-center gap-4 text-xs">
-                <div className="text-center"><span className="block text-muted-foreground">Alcance</span><span className="font-mono">{post.reach.toLocaleString()}</span></div>
-                <div className="text-center"><span className="block text-muted-foreground">Eng.</span><span className="font-mono text-exa-green">{post.engagementRate}%</span></div>
+                <div className="text-center"><span className="block text-muted-foreground">Likes</span><span className="font-mono">{post.likes}</span></div>
+                <div className="text-center"><span className="block text-muted-foreground">Coment.</span><span className="font-mono">{post.comments}</span></div>
                 <div className="text-center"><span className="block text-muted-foreground">Saves</span><span className="font-mono">{post.saves}</span></div>
                 <div className="text-center"><span className="block text-muted-foreground">Shares</span><span className="font-mono">{post.shares}</span></div>
+                {post.permalink && (
+                  <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
             </div>
           ))}

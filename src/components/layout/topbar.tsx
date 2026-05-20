@@ -2,18 +2,23 @@
 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Bell, Plus, Radar, Search } from "lucide-react";
+import { Bell, Plus, Radar, Search, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 export function Topbar() {
   const now = new Date();
+  const router = useRouter();
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
     <header className="sticky top-0 z-30 h-16 border-b border-border/50 bg-background/80 backdrop-blur-xl flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
         <div>
           <h2 className="text-sm font-medium">
-            Boa tarde, Jefferson
+            {greeting}, Jefferson
           </h2>
           <p className="text-xs text-muted-foreground">
             {format(now, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -53,6 +58,7 @@ export function Topbar() {
           variant="ghost"
           size="icon"
           className="text-muted-foreground hover:text-foreground"
+          onClick={() => router.push("/radar")}
         >
           <Radar className="w-4 h-4" />
         </Button>
@@ -60,9 +66,20 @@ export function Topbar() {
         <Button
           size="sm"
           className="bg-exa-red hover:bg-exa-red/90 text-white gap-2"
+          onClick={() => router.push("/gerador")}
         >
           <Plus className="w-3.5 h-3.5" />
           Gerar Conteudo
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-destructive"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          title="Sair"
+        >
+          <LogOut className="w-4 h-4" />
         </Button>
       </div>
     </header>
