@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -16,6 +17,8 @@ import {
   ArrowDownRight,
   Target,
   Clock,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import {
   AreaChart,
@@ -27,7 +30,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { currentMetrics, mockMetrics, healthScore } from "@/data/mock-instagram";
+import { currentMetrics as fallbackMetrics, mockMetrics as fallbackDailyMetrics, healthScore as fallbackHealthScore } from "@/data/mock-instagram";
 import { mockInsights } from "@/data/mock-radar";
 import { mockContentPipeline, statusLabels, statusColors } from "@/data/mock-content";
 
@@ -101,7 +104,7 @@ function HealthScoreWidget() {
     estagnado: "text-destructive",
     critico: "text-destructive",
   };
-  const ringColor = statusColorMap[healthScore.status] || "text-exa-amber";
+  const ringColor = statusColorMap[fallbackHealthScore.status] || "text-exa-amber";
 
   return (
     <motion.div className="glass-card p-6" {...fadeIn} transition={{ delay: 0.2 }}>
@@ -130,23 +133,23 @@ function HealthScoreWidget() {
               className={ringColor}
               strokeWidth="6"
               strokeLinecap="round"
-              strokeDasharray={`${healthScore.overall * 2.64} 264`}
+              strokeDasharray={`${fallbackHealthScore.overall * 2.64} 264`}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold">{healthScore.overall}</span>
+            <span className="text-3xl font-bold">{fallbackHealthScore.overall}</span>
             <span className="text-[10px] text-muted-foreground">/100</span>
           </div>
         </div>
 
         <div className="flex-1 space-y-2.5">
           {[
-            { label: "Crescimento", value: healthScore.growth },
-            { label: "Engajamento", value: healthScore.engagement },
-            { label: "Consistencia", value: healthScore.consistency },
-            { label: "Diversidade", value: healthScore.diversity },
-            { label: "Comercial", value: healthScore.commercial },
-            { label: "Tendencias", value: healthScore.trends },
+            { label: "Crescimento", value: fallbackHealthScore.growth },
+            { label: "Engajamento", value: fallbackHealthScore.engagement },
+            { label: "Consistencia", value: fallbackHealthScore.consistency },
+            { label: "Diversidade", value: fallbackHealthScore.diversity },
+            { label: "Comercial", value: fallbackHealthScore.commercial },
+            { label: "Tendencias", value: fallbackHealthScore.trends },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-2">
               <span className="text-[11px] text-muted-foreground w-24">
@@ -173,7 +176,7 @@ function HealthScoreWidget() {
       </div>
       <div className="mt-4 p-3 rounded-lg bg-exa-amber/5 border border-exa-amber/10">
         <p className="text-xs text-exa-amber">
-          {healthScore.statusDescription}
+          {fallbackHealthScore.statusDescription}
         </p>
       </div>
     </motion.div>
@@ -232,7 +235,7 @@ function InsightCard({
 }
 
 function GrowthChart() {
-  const data = mockMetrics.slice(-14);
+  const data = fallbackDailyMetrics.slice(-14);
   return (
     <motion.div className="glass-card p-6" {...fadeIn} transition={{ delay: 0.3 }}>
       <div className="flex items-center justify-between mb-4">
@@ -240,7 +243,7 @@ function GrowthChart() {
           Crescimento de Seguidores (14 dias)
         </h3>
         <span className="text-xs text-muted-foreground font-mono">
-          {currentMetrics.followers} total
+          {fallbackMetrics.followers} total
         </span>
       </div>
       <ResponsiveContainer width="100%" height={200}>
@@ -285,7 +288,7 @@ function GrowthChart() {
 }
 
 function EngagementChart() {
-  const data = mockMetrics.slice(-14);
+  const data = fallbackDailyMetrics.slice(-14);
   return (
     <motion.div className="glass-card p-6" {...fadeIn} transition={{ delay: 0.35 }}>
       <div className="flex items-center justify-between mb-4">
@@ -293,7 +296,7 @@ function EngagementChart() {
           Alcance Diario (14 dias)
         </h3>
         <span className="text-xs text-exa-green font-mono">
-          +{currentMetrics.reach7d.toLocaleString()} 7d
+          +{fallbackMetrics.reach7d.toLocaleString()} 7d
         </span>
       </div>
       <ResponsiveContainer width="100%" height={200}>
@@ -426,21 +429,56 @@ function RadarTicker() {
 }
 
 export default function DashboardPage() {
+  const [metrics, setMetrics] = useState(fallbackMetrics);
+  const [dataSource, setDataSource] = useState<string>("loading");
+
+  useEffect(() => {
+    fetch("/api/instagram")
+      .then((r) => r.json())
+      .then((data) => {
+        setDataSource(data.source || "mock");
+        if (data.current) {
+          setMetrics(data.current);
+        }
+      })
+      .catch(() => setDataSource("mock"));
+  }, []);
+
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
+      {/* Data source indicator */}
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        {dataSource === "instagram_api" ? (
+          <>
+            <Wifi className="w-3 h-3 text-exa-green" />
+            <span className="text-exa-green">Dados reais do Instagram @examidia</span>
+          </>
+        ) : dataSource === "loading" ? (
+          <>
+            <Clock className="w-3 h-3 animate-spin" />
+            <span>Carregando dados...</span>
+          </>
+        ) : (
+          <>
+            <WifiOff className="w-3 h-3 text-exa-amber" />
+            <span className="text-exa-amber">Dados simulados — configure a Instagram API para dados reais</span>
+          </>
+        )}
+      </div>
+
       {/* Metric cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
         <StatCard
           label="Seguidores"
-          value={currentMetrics.followers.toLocaleString()}
-          change={currentMetrics.followersGrowth7d}
+          value={metrics.followers.toLocaleString()}
+          change={metrics.followersGrowth7d}
           changeLabel="7d"
           icon={Users}
           delay={0}
         />
         <StatCard
           label="Alcance 7d"
-          value={currentMetrics.reach7d.toLocaleString()}
+          value={metrics.reach7d.toLocaleString()}
           change={12}
           changeLabel="%"
           icon={Eye}
@@ -448,7 +486,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Engajamento"
-          value={`${currentMetrics.engagementAvg}%`}
+          value={`${metrics.engagementAvg}%`}
           change={0.8}
           changeLabel="pp"
           icon={Heart}
@@ -456,7 +494,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Salvamentos"
-          value={currentMetrics.totalSaves30d}
+          value={metrics.totalSaves30d}
           change={18}
           changeLabel="%"
           icon={Bookmark}
@@ -464,7 +502,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Compartilhamentos"
-          value={currentMetrics.totalShares30d}
+          value={metrics.totalShares30d}
           change={-5}
           changeLabel="%"
           icon={Share2}
@@ -472,7 +510,7 @@ export default function DashboardPage() {
         />
         <StatCard
           label="Comentarios"
-          value={currentMetrics.totalComments30d}
+          value={metrics.totalComments30d}
           change={23}
           changeLabel="%"
           icon={MessageCircle}

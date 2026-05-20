@@ -19,6 +19,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   approvals     Approval[]
+  auditLogs     AuditLog[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -57,88 +58,193 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ─── Content Pipeline ────────────────────────────────────────────
+// ─── Integrations ────────────────────────────────────────────────
 
-model Content {
-  id              String        @id @default(cuid())
-  title           String
-  objective       String?
-  hypothesis      String?
-  format          ContentFormat
-  funnel          Funnel
-  audience        Audience
-  tone            Tone          @default(PROVOCATIVO)
-  status          ContentStatus @default(IDEA)
-  priority        Priority      @default(MEDIA)
-  hypeScore       Int?
-  commercialScore Int?
-  scriptBody      String?
-  creativeUrl     String?
-  scheduledAt     DateTime?
-  publishedAt     DateTime?
-  source          String?
-  approvals       Approval[]
-  metrics         PostMetric?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+model Integration {
+  id         String            @id @default(cuid())
+  type       IntegrationType
+  status     IntegrationStatus @default(DISCONNECTED)
+  lastSyncAt DateTime?
+  config     Json?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 }
 
-model Approval {
-  id        String         @id @default(cuid())
-  contentId String
-  userId    String
-  action    ApprovalAction
-  comment   String?
-  content   Content        @relation(fields: [contentId], references: [id], onDelete: Cascade)
-  user      User           @relation(fields: [userId], references: [id])
-  createdAt DateTime       @default(now())
-}
+// ─── Instagram Metrics ───────────────────────────────────────────
 
-// ─── Metrics ─────────────────────────────────────────────────────
-
-model PostMetric {
-  id             String  @id @default(cuid())
-  contentId      String  @unique
-  reach          Int     @default(0)
-  impressions    Int     @default(0)
-  likes          Int     @default(0)
-  comments       Int     @default(0)
-  saves          Int     @default(0)
-  shares         Int     @default(0)
-  engagementRate Float   @default(0)
-  content        Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+model InstagramMetric {
+  id             String   @id @default(cuid())
+  date           DateTime @unique
+  followers      Int
+  newFollowers   Int      @default(0)
+  lostFollowers  Int      @default(0)
+  reach          Int      @default(0)
+  impressions    Int      @default(0)
+  engagement     Float    @default(0)
+  likes          Int      @default(0)
+  comments       Int      @default(0)
+  shares         Int      @default(0)
+  saves          Int      @default(0)
+  profileClicks  Int      @default(0)
+  websiteClicks  Int      @default(0)
+  whatsappClicks Int      @default(0)
   createdAt      DateTime @default(now())
 }
 
-model DailyMetric {
-  id        String   @id @default(cuid())
-  date      DateTime @unique
-  followers Int
-  reach     Int
-  engagement Float
-  saves     Int
-  shares    Int
-  comments  Int
-  createdAt DateTime @default(now())
+model InstagramPost {
+  id              String    @id @default(cuid())
+  instagramId     String    @unique
+  type            String
+  caption         String?
+  permalink       String?
+  mediaUrl        String?
+  thumbnailUrl    String?
+  publishedAt     DateTime?
+  reach           Int       @default(0)
+  impressions     Int       @default(0)
+  likes           Int       @default(0)
+  comments        Int       @default(0)
+  shares          Int       @default(0)
+  saves           Int       @default(0)
+  engagementRate  Float     @default(0)
+  contentTheme    String?
+  funnelStage     String?
+  audience        String?
+  createdAt       DateTime  @default(now())
+}
+
+// ─── Content Pipeline ────────────────────────────────────────────
+
+model ContentIdea {
+  id              String        @id @default(cuid())
+  title           String
+  description     String?
+  audience        Audience
+  objective       String?
+  funnelStage     Funnel
+  format          ContentFormat
+  sourceType      String?
+  sourceUrl       String?
+  hypeScore       Int?
+  commercialScore Int?
+  authorityScore  Int?
+  priority        Priority      @default(MEDIA)
+  status          String        @default("new")
+  contentPieces   ContentPiece[]
+  createdAt       DateTime      @default(now())
+}
+
+model ContentPiece {
+  id              String          @id @default(cuid())
+  ideaId          String?
+  idea            ContentIdea?    @relation(fields: [ideaId], references: [id])
+  title           String
+  format          ContentFormat
+  audience        Audience
+  objective       String?
+  funnelStage     Funnel
+  tone            Tone            @default(PROVOCATIVO)
+  status          ContentStatus   @default(IDEA)
+  priority        Priority        @default(MEDIA)
+  hypeScore       Int?
+  commercialScore Int?
+  script          String?
+  caption         String?
+  cta             String?
+  hashtags        String?
+  hypothesis      String?
+  source          String?
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  notionPageId    String?
+  versions        ContentVersion[]
+  approvals       Approval[]
+  assets          CreativeAsset[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+model ContentVersion {
+  id             String       @id @default(cuid())
+  contentPieceId String
+  contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  versionNumber  Int
+  type           String
+  body           String
+  createdBy      String?
+  createdAt      DateTime     @default(now())
+}
+
+model CreativeAsset {
+  id             String       @id @default(cuid())
+  contentPieceId String
+  contentPiece   ContentPiece @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  type           String
+  url            String
+  cloudinaryId   String?
+  driveFileId    String?
+  prompt         String?
+  status         String       @default("draft")
+  createdAt      DateTime     @default(now())
+}
+
+model Approval {
+  id             String         @id @default(cuid())
+  contentPieceId String
+  contentPiece   ContentPiece   @relation(fields: [contentPieceId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  stage          String
+  action         ApprovalAction
+  rejectedReason String?
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 // ─── Radar ───────────────────────────────────────────────────────
 
-model RadarItem {
-  id              String   @id @default(cuid())
+model NewsItem {
+  id              String        @id @default(cuid())
   title           String
-  summary         String
   source          String
-  sourceUrl       String?
+  url             String?
+  summary         String
   category        RadarCategory
-  audience        Audience
-  hypeScore       Int
-  relevanceScore  Int
-  suggestedFormat ContentFormat
-  suggestedAngle  String
-  whyMatters      String
-  used            Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  relevanceScore  Int           @default(0)
+  hypeScore       Int           @default(0)
+  audience        Audience      @default(GERAL)
+  suggestedFormat ContentFormat @default(POST)
+  suggestedAngle  String?
+  whyMatters      String?
+  used            Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+}
+
+model CompetitorItem {
+  id          String   @id @default(cuid())
+  competitor  String
+  platform    String
+  url         String?
+  title       String
+  summary     String?
+  contentType String?
+  insight     String?
+  createdAt   DateTime @default(now())
+}
+
+// ─── Strategy ────────────────────────────────────────────────────
+
+model StrategyInsight {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  severity       String   @default("medium")
+  priority       Priority @default(MEDIA)
+  recommendation String?
+  relatedMetric  String?
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
 }
 
 // ─── Comercial ───────────────────────────────────────────────────
@@ -157,12 +263,75 @@ model Lead {
   updatedAt   DateTime   @updatedAt
 }
 
+model Campaign {
+  id        String   @id @default(cuid())
+  name      String
+  objective String?
+  startDate DateTime?
+  endDate   DateTime?
+  status    String   @default("draft")
+  createdAt DateTime @default(now())
+}
+
+// ─── Remotion ────────────────────────────────────────────────────
+
+model RemotionVideo {
+  id              String   @id @default(cuid())
+  contentPieceId  String?
+  template        String
+  compositionData Json?
+  renderStatus    String   @default("pending")
+  outputUrl       String?
+  createdAt       DateTime @default(now())
+}
+
+// ─── AI Prompts ──────────────────────────────────────────────────
+
+model AIPromptTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String
+  prompt      String
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Audit ───────────────────────────────────────────────────────
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  action   String
+  entity   String
+  entityId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+}
+
 // ─── Enums ───────────────────────────────────────────────────────
 
 enum Role {
   ADMIN
   EDITOR
   VIEWER
+}
+
+enum IntegrationType {
+  INSTAGRAM
+  NOTION
+  CLOUDINARY
+  GOOGLE_DRIVE
+  OPENAI
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  SYNCING
 }
 
 enum ContentFormat {
@@ -198,15 +367,20 @@ enum ContentStatus {
   IDEA
   PENDING_THEME
   THEME_APPROVED
+  THEME_REJECTED
   PENDING_SCRIPT
   SCRIPT_BUILDING
   SCRIPT_APPROVED
+  SCRIPT_REJECTED
   PENDING_CREATIVE
   CREATIVE_GENERATING
   CREATIVE_APPROVED
+  CREATIVE_REJECTED
+  REVISION_REQUESTED
   SCHEDULED
   PUBLISHED
   ANALYZED
+  ARCHIVED
 }
 
 enum Priority {
